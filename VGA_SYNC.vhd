@@ -1,4 +1,4 @@
-%VGA Generator333%
+%VGA Generator44%
 library IEEE;
 use  IEEE.STD_LOGIC_1164.all;
 use  IEEE.STD_LOGIC_ARITH.all;
