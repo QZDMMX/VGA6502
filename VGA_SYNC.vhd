@@ -11,7 +11,7 @@ ENTITY VGA_SYNC IS
         red_out, green_out              : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
         blue_out                        : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
         horiz_sync_out, vert_sync_out   : OUT STD_LOGIC;
-        h_reset_out,v_on_h,v_on_v 			: OUT STD_LOGIC;
+        h_reset_out,v_on_h,v_on_v       : OUT STD_LOGIC;
         pixel_row, pixel_column         : OUT STD_LOGIC_VECTOR(9 DOWNTO 0));
 END VGA_SYNC;
 
@@ -27,7 +27,7 @@ video_on <= video_on_h AND video_on_v;
 v_on_h<=video_on_h;
 v_on_v<=video_on_v;
 
-h_reset_out<=h_reset;
+h_reset_out<=h_reset AND video_on_v;
 pixel_row <= v_count;
 pixel_column <= h_count;
 
@@ -102,11 +102,11 @@ BEGIN
     red_out <= red AND video_on & video_on & video_on;
     green_out <= green AND video_on & video_on & video_on;
     IF (h_count=0) OR (h_count=639) THEN
-		Board_B <="11";
-	ELSE
-		Board_B <="00";
-	END IF;
-	blue_out <= (blue or Board_B) AND video_on & video_on;
+    Board_B <="11";
+  ELSE
+    Board_B <="00";
+  END IF;
+  blue_out <= (blue or Board_B) AND video_on & video_on;
     horiz_sync_out <= horiz_sync;
     vert_sync_out <= vert_sync;
 
