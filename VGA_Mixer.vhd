@@ -20,8 +20,8 @@ ENTITY VGA_Mixer IS
         SIGNAL FONT_DAT						: IN STD_LOGIC_VECTOR(15 DOWNTO 0);
         
         SIGNAL VRAM_ADDR					: OUT STD_LOGIC_VECTOR(16 DOWNTO 0); 
-        SIGNAL VRAM_OE,VRAM_WE,VRAM_CE: OUT std_logic;
-        
+        SIGNAL VRAM_OE1,VRAM_WE1	: OUT std_logic;
+        SIGNAL VRAM_CE1,VRAM_CE2	: OUT std_logic;
         SIGNAL RGB_OUT						: OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
 		
         SIGNAL ST_OUT							: OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
@@ -34,7 +34,8 @@ BEGIN
 VGA_RGB: process(Clock)
 BEGIN 
 	IF Clock'event and Clock='1' THEN
-
+			VRAM_CE1<='0';
+			VRAM_CE2<='1';
 	END IF;
 END process VGA_RGB;	
 

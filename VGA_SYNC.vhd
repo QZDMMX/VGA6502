@@ -11,7 +11,7 @@ ENTITY VGA_SYNC IS
         red_out, green_out              : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
         blue_out                        : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
         horiz_sync_out, vert_sync_out   : OUT STD_LOGIC;
-        h_reset_out,v_on_h,v_on_v 		: OUT STD_LOGIC;
+        h_reset_out,v_on_h,v_on_v 			: OUT STD_LOGIC;
         pixel_row, pixel_column         : OUT STD_LOGIC_VECTOR(9 DOWNTO 0));
 END VGA_SYNC;
 
