@@ -1,4 +1,4 @@
-%VGA Generatorqv8%
+%VGA Generator%
 library IEEE;
 use  IEEE.STD_LOGIC_1164.all;
 use  IEEE.STD_LOGIC_ARITH.all;
@@ -20,7 +20,13 @@ BEGIN
 -- video_on is high only when RGB data is displayed
 video_on <= video_on_H AND video_on_V;
 
-
+-- 
+--  Horiz_sync  ------------------------------------__________--------
+--  H_count       0                640             659       755    799
+--
+--                                              H_count= 699
+--  ------------------------------------------------------X-----------
+--  V_count                                               
 
 PROCESS
 BEGIN
@@ -29,10 +35,7 @@ BEGIN
 		
 --Generate Horizontal and Vertical Timing Signals for Video Signal
 -- H_count counts pixels (640 + extra time for sync signals)
--- 
---  Horiz_sync  ------------------------------------__________--------
---  H_count       0                640             659       755    799
---
+
 	IF (h_count = 799) THEN
    		h_count <= "0000000000";
 	ELSE
@@ -67,25 +70,18 @@ BEGIN
 -- Generate Video on Screen Signals for Pixel Data
 	IF (h_count <= 639) THEN
    		video_on_h <= '1';
---   		pixel_column <= h_count;
+   		pixel_column <= h_count;
 	ELSE
 	   	video_on_h <= '0';
 	END IF;
 
-	IF (h_count <= 659) THEN
-   		pixel_column <= h_count;
-	END IF;
-
 	IF (v_count <= 479) THEN
    		video_on_v <= '1';
---   		pixel_row <= v_count;
+   		pixel_row <= v_count;
 	ELSE
    		video_on_v <= '0';
 	END IF;
 
-	IF (v_count <= 499) THEN
-   		pixel_row <= v_count;
-	END IF;
 	
 -- Put all video signals through DFFs to elminate any delays that cause a blurry image
 		red_out <= red AND video_on2;
