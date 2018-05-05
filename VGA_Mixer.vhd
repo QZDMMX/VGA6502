@@ -25,11 +25,11 @@ ENTITY VGA_Mixer IS
         SIGNAL SPI_DO             : OUT std_logic;
         SIGNAL RGB_OUT            : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
     
-        SIGNAL FONT_ADDR          : OUT STD_LOGIC_VECTOR(9 DOWNTO 0);
+        SIGNAL FONT_ADDR          : OUT STD_LOGIC_VECTOR(10 DOWNTO 0);
         SIGNAL VDATA              : INOUT STD_LOGIC_VECTOR(7 DOWNTO 0);
         
         SIGNAL T1,T2              : OUT std_logic;
-        SIGNAL FTESTD             : OUT STD_LOGIC_VECTOR(15 DOWNTO 0) );    
+        SIGNAL FTESTD             : OUT STD_LOGIC_VECTOR(3 DOWNTO 0) );    
 END VGA_Mixer;
 
 architecture behavior of VGA_Mixer is
@@ -51,7 +51,7 @@ T1<=VBUSY;
 T2<=WRDY;
 
 VDATA <= "ZZZZZZZZ" WHEN VBUSY = '1' ELSE VDATA_BUF;
-FTESTD<="0100000010000000";
+FTESTD<="0000";
 
 RGB: process(LDATA,LFO,FBCNT,VDATA)
 BEGIN
@@ -121,7 +121,7 @@ BEGIN
 END process H_CNT;  
 
 --VRAM_ADDR<="01111" & V_POS(9 DOWNTO 4) & FCCNT(5 DOWNTO 0);
-FONT_ADDR<=VDATA(5 DOWNTO 0) & V_POS(3 DOWNTO 0);
+FONT_ADDR<=VDATA(6 DOWNTO 0) & V_POS(3 DOWNTO 0);
 
 END behavior;
 
