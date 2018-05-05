@@ -28,7 +28,8 @@ ENTITY VGA_Mixer IS
         SIGNAL FONT_ADDR          : OUT STD_LOGIC_VECTOR(10 DOWNTO 0);
         SIGNAL VDATA              : INOUT STD_LOGIC_VECTOR(7 DOWNTO 0);
         
-        SIGNAL T1,T2              : OUT std_logic;
+        SIGNAL T1                 : OUT std_logic;
+        SIGNAL ST                 : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
         SIGNAL FTESTD             : OUT STD_LOGIC_VECTOR(3 DOWNTO 0) );    
 END VGA_Mixer;
 
@@ -40,18 +41,90 @@ architecture behavior of VGA_Mixer is
     SIGNAL LFDATA:STD_LOGIC_VECTOR(15 DOWNTO 0);
     SIGNAL LFO:STD_LOGIC;
 
+    SIGNAL SPI_BCNT,SPI_CON,SPI_ST:STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL SPI_DBUF:STD_LOGIC_VECTOR(7 DOWNTO 0);
+    SIGNAL SPI_ADDR:STD_LOGIC_VECTOR(15 DOWNTO 0);
+--    SIGNAL SPI_ST:STD_LOGIC_VECTOR(2 DOWNTO 0);   
+    SIGNAL SPI_WR,SPI_W1,SPI_W2,SPI_WCLR:STD_LOGIC;
+
 BEGIN
 
 VRAM_CE2<='1';
 VRAM_CE1<='0';
 VRAM_OE1<=NOT VBUSY;
+VRAM_WE1<=NOT SPI_WCLR;
 
 --RGB_OUT<="00000000";
-T1<=VBUSY;
-T2<=WRDY;
+T1<=SPI_W2;
+ST<=SPI_DBUF & SPI_CON(2) & SPI_ST & SPI_ADDR(3 DOWNTO 0);
 
-VDATA <= "ZZZZZZZZ" WHEN VBUSY = '1' ELSE VDATA_BUF;
-FTESTD<="0000";
+VDATA <= "ZZZZZZZZ" WHEN SPI_WCLR = '0' ELSE VDATA_BUF;
+
+FTESTD<=FBCNT;
+
+SPI: process(SPI_CK,SPI_CE)
+BEGIN 
+  IF SPI_CE='1' THEN
+      SPI_ST<="000";
+      SPI_BCNT<="000";
+      SPI_WR<='0';
+      SPI_CON(2)<='0';
+  ELSIF SPI_CK'event and SPI_CK='1' THEN
+      SPI_DBUF<=SPI_DBUF(6 DOWNTO 0) & SPI_DI;
+      
+      SPI_BCNT<=SPI_BCNT+1;
+      IF SPI_BCNT="111" THEN
+          IF SPI_ST(2)='0' THEN
+              SPI_ST<=SPI_ST+1;
+          END IF;
+          
+          IF SPI_ST="000" AND SPI_DBUF(6 DOWNTO 3)="1101" THEN
+              SPI_CON(2)<='1';
+              SPI_CON(1)<=SPI_DBUF(0);
+              SPI_CON(0)<=SPI_DI;
+          END IF;
+          
+          IF SPI_ST="001" AND SPI_CON(2)='1' THEN
+              SPI_ADDR(7 DOWNTO 0)<=SPI_DBUF(6 DOWNTO 0) & SPI_DI;
+          END IF;
+          
+          IF SPI_ST="010" AND SPI_CON(2)='1' THEN
+              SPI_ADDR(15 DOWNTO 8)<=SPI_DBUF(6 DOWNTO 0) & SPI_DI;
+          END IF;
+          
+          IF SPI_ST="011" AND SPI_CON(2)='1' THEN
+              SPI_WR<='1';
+          END IF;
+
+          IF SPI_ST(2)='1' AND SPI_CON(2)='1' THEN
+              SPI_ADDR<=SPI_ADDR+1;
+              SPI_WR<='1';
+          END IF;
+      ELSE
+          SPI_WR<='0';    
+      END IF;
+  END IF;     
+    
+END process SPI; 
+ 
+SPIWA: process(SPI_WR,SPI_WCLR)
+BEGIN
+  IF SPI_WCLR='1' THEN
+    SPI_W1<='0';
+  ELSIF SPI_WR'event and SPI_WR='1' THEN
+    SPI_W1<='1';
+  END IF;
+END process SPIWA; 
+
+SPIWB: process(Clock,SPI_WCLR)
+BEGIN
+  IF SPI_WCLR='1' THEN
+    SPI_W2<='0';
+  ELSIF Clock'event and Clock='1' THEN
+    SPI_W2<=SPI_W1;
+    VDATA_BUF<=SPI_DBUF;
+  END IF;
+END process SPIWB; 
 
 RGB: process(LDATA,LFO,FBCNT,VDATA)
 BEGIN
@@ -73,6 +146,8 @@ BEGIN
           FCCNT<="0000000";
           VBUSY<='1';
           WRDY<='0';
+          SPI_WCLR<='0';
+          VRAM_ADDR<="01111" & V_POS(9 DOWNTO 4) & "000000";
       ELSIF (H_POS<640) AND (V_ON='1') THEN
         IF FBCNT<"1001" THEN
           FBCNT<=FBCNT+1;
@@ -95,8 +170,15 @@ BEGIN
         
         IF (FBCNT(0)='0') AND (H_POS(9)='0') THEN
           VRAM_ADDR<='0' & V_POS(8 DOWNTO 1) & H_POS(8 DOWNTO 1);
+          SPI_WCLR<='0';
         ELSIF (FBCNT="1001") THEN
           VRAM_ADDR<="01111" & V_POS(9 DOWNTO 4) & FCCNT(5 DOWNTO 0);
+          SPI_WCLR<='0';
+        ELSIF WRDY='1' AND SPI_W2='1' THEN
+          VRAM_ADDR<='0' & SPI_ADDR;
+          SPI_WCLR<='1';
+        ELSE
+          SPI_WCLR<='0';
         END IF;
 
         IF (FBCNT="0000") THEN
@@ -115,6 +197,13 @@ BEGIN
       ELSE    
         VBUSY<='0';
         WRDY<='1';
+        
+        IF WRDY='1' AND SPI_W2='1' THEN
+          VRAM_ADDR<='0' & SPI_ADDR;
+          SPI_WCLR<='1';
+        ELSE
+          SPI_WCLR<='0';
+        END IF;
       END IF;
       
   END IF;
