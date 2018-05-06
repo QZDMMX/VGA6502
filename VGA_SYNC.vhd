@@ -90,7 +90,7 @@ BEGIN
       video_on_h <= '0';
   END IF;
 
-  IF (v_count <= 479) THEN
+  IF  (v_count <= 479) THEN
       video_on_v <= '1';
 --      pixel_row <= v_count;
   ELSE
