@@ -30,7 +30,10 @@ ENTITY VGA_Mixer IS
         
         SIGNAL T1                 : OUT std_logic;
         SIGNAL ST                 : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
-        SIGNAL FTESTD             : OUT STD_LOGIC_VECTOR(3 DOWNTO 0) );    
+        SIGNAL FTESTD             : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+        SIGNAL NRSTO              : OUT std_logic;
+        SIGNAL NMCLK              : OUT std_logic;
+        SIGNAL NMDIO              : INOUT std_logic );    
 END VGA_Mixer;
 
 architecture behavior of VGA_Mixer is
@@ -46,10 +49,12 @@ architecture behavior of VGA_Mixer is
     SIGNAL SPI_ADDR:STD_LOGIC_VECTOR(15 DOWNTO 0);
     SIGNAL SPI_WR,SPI_W1,SPI_W2,SPI_WCLR:STD_LOGIC;
 
+    SIGNAL NRST:STD_LOGIC;
+
 BEGIN
 
-VRAM_CE2<='1';
-VRAM_CE1<='0';
+VRAM_CE2<='0';
+VRAM_CE1<='1';
 VRAM_OE1<=NOT VBUSY;
 VRAM_WE1<=NOT SPI_WCLR;
 
@@ -58,6 +63,12 @@ ST<=FVCNT & FCCNT;
 
 VDATA <= "ZZZZZZZZ" WHEN SPI_WCLR = '0' ELSE VDATA_BUF;
 
+NRSTO <=NRST;
+NMDIO <= 'Z' WHEN (SPI_ST="000") OR ((SPI_CON(1)='1') AND (SPI_CON(0)='1')) ELSE SPI_DI;
+NMCLK <= '0' WHEN (SPI_ST="000") OR (SPI_CON(1)='0') ELSE (NOT SPI_CK);  --NOTE MCLK IS NOT SPI_CK!!!
+
+SPI_DO<= NMDIO WHEN (SPI_ST="000") OR ((SPI_CON(1)='1') AND (SPI_CON(0)='1')) ELSE '0';
+ 
 FTESTD<=FBCNT;
 
 SPI: process(SPI_CK,SPI_CE)
@@ -72,14 +83,16 @@ BEGIN
       
       SPI_BCNT<=SPI_BCNT+1;
       IF SPI_BCNT="111" THEN
-          IF SPI_ST(2)='0' THEN
+          IF SPI_ST(2)='0' THEN   -- 0->1->2->3->3->3.....
               SPI_ST<=SPI_ST+1;
           END IF;
           
           IF SPI_ST="000" AND SPI_DBUF(6 DOWNTO 3)="1101" THEN
+              NRST<=SPI_DBUF(0) OR NRST;  --FOR FIRST SPI-CMD,NET RST ENDS
+      
               SPI_CON(2)<='1';
-              SPI_CON(1)<=SPI_DBUF(0);
-              SPI_CON(0)<=SPI_DI;
+              SPI_CON(1)<=SPI_DBUF(0);    --='0' FOR VGA STORE,='1' FOR NET MDIO/MCLK
+              SPI_CON(0)<=SPI_DI;     --='0' FOR MDIO OUT,='1' FOR MDIO INPUT
           END IF;
           
           IF SPI_ST="001" AND SPI_CON(2)='1' THEN
@@ -90,11 +103,11 @@ BEGIN
               SPI_ADDR(15 DOWNTO 8)<=SPI_DBUF(6 DOWNTO 0) & SPI_DI;
           END IF;
           
-          IF SPI_ST="011" AND SPI_CON(2)='1' THEN
+          IF SPI_ST="011" AND SPI_CON(2)='1' AND SPI_CON(1)='0' THEN
               SPI_WR<='1';
           END IF;
 
-          IF SPI_ST(2)='1' AND SPI_CON(2)='1' THEN
+          IF SPI_ST(2)='1' AND SPI_CON(2)='1' AND SPI_CON(1)='0' THEN
               SPI_ADDR<=SPI_ADDR+1;
               SPI_WR<='1';
           END IF;
@@ -211,9 +224,9 @@ BEGIN
           IF (FBCNT="0000") THEN
               LFO<=FONT_DATIN(15) XOR VDATA(7);
               IF VDATA(7)='1' THEN
-              		LFDATA<=NOT FONT_DATIN;
+                  LFDATA<=NOT FONT_DATIN;
               ELSE
-              		LFDATA<=FONT_DATIN;
+                  LFDATA<= FONT_DATIN;
               END IF;
           ELSE
               LFO<=LFDATA(CONV_INTEGER(NOT FBCNT));
